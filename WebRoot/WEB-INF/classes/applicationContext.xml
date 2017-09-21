@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop.xsd
+		http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd">
+
+	<!--注入的顺序 jdbc.properties->dataSource->sessionFactory->dao->service->junit->action -->
+
+	<!-- 如果是web项目，必须添加classpath前缀，否则报错找不到这个文件jdbc.properties -->
+	<!-- java.io.FileNotFoundException: Could not open ServletContext resource 
+		[/jdbc.properties] -->
+	<context:property-placeholder location="classpath:jdbc.properties" />
+	<!-- 类：文档，jar包里面com.springsource.org.apache.commons.dbcp-1.2.2.osgi.jar -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		destroy-method="close">
+		<!-- 4个属性都是来自于BasicDataSource里面的set方法 -->
+		<property name="driverClassName" value="${jdbc.driverClassName}" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+		
+	</bean>
+
+	<!-- 从spring-orm-3.2.0.RELEASE.jar拷贝类名 -->
+	<!-- LocalSessionFactoryBean implements FactoryBean<SessionFactory> 实际上返回的是getObject的实例，本质就是SessionFactory实例 -->
+	<!-- public SessionFactory getObject() { -->
+	<!-- return this.sessionFactory; -->
+	<!-- } -->
+
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+		<!-- 注入数据源dataSource -->
+		<property name="dataSource" ref="dataSource" />
+		<!-- 加载映射文件 -->
+		<!-- private Resource[] mappingLocations; -->
+		<!-- 使用要求：1.前缀classpath*,任意编译路径 2通配符* -->
+		<property name="mappingLocations" value="classpath*:com/zxq/ssh/domain/*.hbm.xml" />
+		<!-- 配置hibernate的其他属性 -->
+		<!-- private Properties hibernateProperties; -->
+		<!-- 必须添加hibernate.前缀 -->
+		<property name="hibernateProperties">
+			<value>
+				hibernate.show_sql=true
+				hibernate.hbm2ddl.auto=update
+				hibernate.dialect=org.hibernate.dialect.SQLServerDialect
+			</value>
+		</property>
+	</bean>
+	<!-- 配置xml声明式事务管理需要3个配置 -->
+	<!-- 1.事务管理器，类似于TxManager -->
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+		<!-- 必须注入dataSource是错误的 -->
+		<!-- java.lang.IllegalArgumentException: Property 'sessionFactory' is required -->
+		<!-- <property name="dataSource" ref="dataSource" /> -->
+		<!-- 必须注入sessionFactory -->
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<!-- 2.aop配置 -->
+	<aop:config>
+		<!-- 切入点 -->
+		<aop:pointcut expression="execution(* com.zxq.ssh.service.I*Service.*(..))"
+			id="pointcutId" />
+		<!-- 切入点和事务通知的关联配置 -->
+		<aop:advisor advice-ref="adviceId" pointcut-ref="pointcutId" />
+	</aop:config>
+
+	<!-- 3.事务传播属性 -->
+	<!-- transaction-manager="transactionManager"可以不用配置，默认值 -->
+	<tx:advice id="adviceId">
+		<!-- 事务属性 -->
+		<tx:attributes>
+			<!-- I*Service层下面的所有方法都纳入事务管理：默认值propagation="REQUIRED" -->
+
+			<!-- 3个常用的事务传播属性 -->
+			<!-- A.propagation="REQUIRED" 默认值,用的最多,dml操作 -->
+			<!-- 业务方法需要在一个事务中运行。如果方法运行时，已经处在一个事务中，那么加入到该事务，否则为自己创建一个新的事务 -->
+			<!-- 无论如何都有事务,只有一个事务 -->
+
+			<!-- B.propagation="REQUIRES_NEW" -->
+			<!-- 属性表明不管是否存在事务，业务方法总会为自己发起一个新的事务。如果方法已经运行在一个事务中，则原有事务会被挂起，新的事务会被创建，直到方法执行结束，新事务才算结束，原先的事务才会恢复执行 -->
+			<!-- 无论如何都用的新事务,有1到n个事务 -->
+			<!-- 如果写了10业务方法,插入数据,希望单个方法成功 -->
+
+			<!-- C.propagation="SUPPORTS",用的多,dql操作和 read-only="true"成对使用 -->
+			<!-- 这一事务属性表明，如果业务方法在某个事务范围内被调用，则方法成为该事务的一部分。如果业务方法在事务范围外被调用，则方法在没有事务的环境下执行 -->
+			<tx:method name="get*" read-only="true" propagation="SUPPORTS" />
+			<tx:method name="find*" read-only="true" propagation="SUPPORTS" />
+			<tx:method name="query*" read-only="true" propagation="SUPPORTS" />
+			<!-- 以上方法都是查询操作，不需要事务 -->
+			<!-- 排除上面的方法都是需要事务 默认值propagation="REQUIRED" -->
+			<tx:method name="*" />
+		</tx:attributes>
+	</tx:advice>
+	<!-- 新建一个domain类的时候配置一次 -->
+	<!-- 数据层 -->
+	<bean id="usertableDao" class="com.zxq.ssh.dao.impl.UsertableDaoImpl">
+		<!-- 注入到dao的父类HibernateDaoSupport -->
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<!-- 服务层 注入了数据层 userDao是变量的名字 userDao是上面数据层的id -->
+	<bean id="usertableService" class="com.zxq.ssh.service.Impl.UsertableServiceImpl">
+		<property name="usertableDao" ref="usertableDao" />
+	</bean>
+	<!-- 应用层 注入了服务层 -->
+	<bean id="usertableAction" class="com.zxq.ssh.web.action.UsertableAction"
+		scope="prototype">
+		<property name="usertableService" ref="usertableService" />
+		<property name="qxService" ref="qxService" />
+		<property name="roleService" ref="roleService" />
+	</bean>
+
+
+
+
+	<!-- 数据层 -->
+	<bean id="bmDao" class="com.zxq.ssh.dao.impl.BmDaoImpl">
+		<!-- 注入到dao的父类HibernateDaoSupport -->
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<!-- 服务层 注入了数据层 userDao是变量的名字 userDao是上面数据层的id -->
+	<bean id="bmService" class="com.zxq.ssh.service.Impl.BmServiceImpl">
+		<property name="bmDao" ref="bmDao" />
+	</bean>
+	<!-- 应用层 注入了服务层 -->
+	<bean id="bmAction" class="com.zxq.ssh.web.action.BmAction" scope="prototype">
+		<property name="bmService" ref="bmService" />
+	</bean>
+
+
+
+	<!-- 数据层 -->
+	<bean id="flDao" class="com.zxq.ssh.dao.impl.FlDaoImpl">
+		<!-- 注入到dao的父类HibernateDaoSupport -->
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<!-- 服务层 注入了数据层 userDao是变量的名字 userDao是上面数据层的id -->
+	<bean id="flService" class="com.zxq.ssh.service.Impl.FlServiceImpl">
+		<property name="flDao" ref="flDao" />
+	</bean>
+	<!-- 应用层 注入了服务层 -->
+	<bean id="flAction" class="com.zxq.ssh.web.action.FlAction" scope="prototype">
+		<property name="flService" ref="flService" />
+	</bean>
+
+
+
+
+	<!-- 数据层 -->
+	<bean id="glbmDao" class="com.zxq.ssh.dao.impl.GlbmDaoImpl">
+		<!-- 注入到dao的父类HibernateDaoSupport -->
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<!-- 服务层 注入了数据层 userDao是变量的名字 userDao是上面数据层的id -->
+	<bean id="glbmService" class="com.zxq.ssh.service.Impl.GlbmServiceImpl">
+		<property name="glbmDao" ref="glbmDao" />
+	</bean>
+	<!-- 应用层 注入了服务层 -->
+	<bean id="glbmAction" class="com.zxq.ssh.web.action.GlbmAction"
+		scope="prototype">
+		<property name="glbmService" ref="glbmService" />
+	</bean>
+
+
+
+
+	<!-- 数据层 -->
+	<bean id="gmjjDao" class="com.zxq.ssh.dao.impl.GmjjDaoImpl">
+		<!-- 注入到dao的父类HibernateDaoSupport -->
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<!-- 服务层 注入了数据层 userDao是变量的名字 userDao是上面数据层的id -->
+	<bean id="gmjjService" class="com.zxq.ssh.service.Impl.GmjjServiceImpl">
+		<property name="gmjjDao" ref="gmjjDao" />
+	</bean>
+	<!-- 应用层 注入了服务层 -->
+	<bean id="gmjjAction" class="com.zxq.ssh.web.action.GmjjAction"
+		scope="prototype">
+		<property name="gmjjService" ref="gmjjService" />
+	</bean>
+
+
+	<!-- 数据层 -->
+	<bean id="infotableDao" class="com.zxq.ssh.dao.impl.InfotableDaoImpl">
+		<!-- 注入到dao的父类HibernateDaoSupport -->
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<!-- 服务层 注入了数据层 userDao是变量的名字 userDao是上面数据层的id -->
+	<bean id="infotableService" class="com.zxq.ssh.service.Impl.InfotableServiceImpl">
+		<property name="infotableDao" ref="infotableDao" />
+	</bean>
+	<!-- 应用层 注入了服务层 -->
+	<bean id="infotableAction" class="com.zxq.ssh.web.action.InfotableAction"
+		scope="prototype">
+		<property name="infotableService" ref="infotableService" />
+	</bean>
+
+
+
+
+	<!-- 数据层 -->
+	<bean id="qxDao" class="com.zxq.ssh.dao.impl.QxDaoImpl">
+		<!-- 注入到dao的父类HibernateDaoSupport -->
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<!-- 服务层 注入了数据层 userDao是变量的名字 userDao是上面数据层的id -->
+	<bean id="qxService" class="com.zxq.ssh.service.Impl.QxServiceImpl">
+		<property name="qxDao" ref="qxDao" />
+	</bean>
+	<!-- 应用层 注入了服务层 -->
+	<bean id="qxAction" class="com.zxq.ssh.web.action.QxAction" scope="prototype">
+		<property name="qxService" ref="qxService" />
+	</bean>
+
+
+
+	<!-- 数据层 -->
+	<bean id="roleDao" class="com.zxq.ssh.dao.impl.RoleDaoImpl">
+		<!-- 注入到dao的父类HibernateDaoSupport -->
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<!-- 服务层 注入了数据层 userDao是变量的名字 userDao是上面数据层的id -->
+	<bean id="roleService" class="com.zxq.ssh.service.Impl.RoleServiceImpl">
+		<property name="roleDao" ref="roleDao" />
+	</bean>
+	<!-- 应用层 注入了服务层 -->
+	<bean id="roleAction" class="com.zxq.ssh.web.action.RoleAction"
+		scope="prototype">
+		<property name="roleService" ref="roleService" />
+		<property name="qxService" ref="qxService" />
+	</bean>
+
+
+
+
+
+
+
+
+
+</beans>

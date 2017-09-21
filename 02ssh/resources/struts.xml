@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE struts PUBLIC
+	"-//Apache Software Foundation//DTD Struts Configuration 2.3//EN"
+	"http://struts.apache.org/dtds/struts-2.3.dtd">
+
+<struts>
+
+	<constant name="struts.enable.DynamicMethodInvocation" value="false" />
+	<constant name="struts.devMode" value="true" />
+	<constant name="struts.ui.theme" value="simple"></constant>
+
+	<package name="default" namespace="/" extends="struts-default">
+<!-- 方案1 建议使用,填写spring的bean  id, -->
+<!-- 好处1:可以使用小写的url地址,从使用通配符 -->
+<!-- 好处2:因为使用action是由spring管理，可以对action添加aop额外处理 -->
+<!-- 坏处:spring配置文件写action的配置 -->
+		<action name="user_*" class="userAction" method="{1}">
+			<result>success.jsp</result>
+			<result name="error">error.jsp</result> 
+			
+		
+		</action>
+		<action name="usertable_*" class="com.zxq.ssh.web.action.UsertableAction" method="{1}">
+			<result name="login">/infomanagment/NewFile1.jsp</result>
+			<result name="getall">/yhglPages/yhgl.jsp</result>		
+			<result name="more">/yhglPages/more.jsp</result>
+			<result name="getallroles">/yhglPages/add.jsp</result>
+			<result>success.jsp</result>
+			<result name="error">error.jsp</result> 
+			<result name="info">/userPages/userinfo.jsp</result>
+			<result name="xiugai">/userPages/xiugai.jsp</result>
+			<result name="xgmm">/xgmaPages/xgmm.jsp</result>
+			<result name="wrong">wrong.jsp</result>
+		</action> 
+		<action name="bm_*" class="com.zxq.ssh.web.action.BmAction" method="{1}">
+			<result>success.jsp</result>
+		</action>
+		<action name="fl_*" class="com.zxq.ssh.web.action.FlAction" method="{1}">
+			<result>success.jsp</result>
+		</action>
+		
+		<action name="infotable_*" class="com.zxq.ssh.web.action.InfotableAction" method="{1}">
+			<result>/leftPages/mywj.jsp</result>
+			<result name="chenggong">/infomanagment/addinfo.jsp</result>
+			<result name="xiugai">/infomanagment/xgaddinfo.jsp</result>
+			<result name="jieguo">shjg.jsp</result>
+			<result name="xiangqing">/infomanagment/xq.jsp</result>
+			<result name="xssh">xssh.jsp</result>
+			<result name="bmsh">/bmshPages/bmsh.jsp</result>
+			<result name="sh">xsshxq.jsp</result>
+			<result name="tongji">tongji.jsp</result>
+			<result name="savechange">addinfo.jsp</result>
+			<result name="bmshxq">/bmshPages/bmshxq.jsp</result>
+		</action>
+		<action name="role_*" class="com.zxq.ssh.web.action.RoleAction" method="{1}" >
+			<result>/jsglPages/jsgl.jsp</result>
+			<result name="more">/jsglPages/more.jsp</result>
+			<result name="getallqx">/jsglPages/addjs.jsp</result>
+		</action>
+		
+		
+		<action name="qx_*" class="com.zxq.ssh.web.action.QxAction" method="{1}">
+		<result>/qxglPages/qxgl.jsp</result>
+		</action>
+		
+		
+		<action name ="a" class="com.zxq.ssh.web.action.UsertableAction" method="textajax">
+		</action>
+		<action name ="b" class="com.zxq.ssh.web.action.BmAction" method="select">
+		</action>
+		<action name ="c" class="com.zxq.ssh.web.action.FlAction" method="flfirst">
+		</action>
+		<action name ="d" class="com.zxq.ssh.web.action.FlAction" method="flsecond">
+		</action>
+		<action name ="e" class="com.zxq.ssh.web.action.FlAction" method="flthird">
+		</action>
+		
+		<action name ="f" class="com.zxq.ssh.web.action.GmjjAction" method="gmjjfirst">
+		</action>
+		<action name ="g" class="com.zxq.ssh.web.action.GmjjAction" method="gmjjsecond">
+		</action>
+		<action name ="h" class="com.zxq.ssh.web.action.GmjjAction" method="gmjjthird">
+		</action>
+		<action name ="i" class="com.zxq.ssh.web.action.UsertableAction" method="tishi">
+		</action>
+		<action name ="j" class="com.zxq.ssh.web.action.InfotableAction" method="choicebm">
+		</action>
+	
+	
+	</package>
+
+
+
+</struts>
